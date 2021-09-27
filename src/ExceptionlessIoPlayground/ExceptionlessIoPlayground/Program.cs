@@ -1,5 +1,6 @@
 ﻿using H.Necessaire;
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace ExceptionlessIoPlayground
@@ -8,17 +9,39 @@ namespace ExceptionlessIoPlayground
     {
         static int Main(string[] args)
         {
-            ExitCode exitCode = MainAsync(args).GetAwaiter().GetResult();
+            OperationResult<ExitCode> executionResult = MainAsync(args).GetAwaiter().GetResult();
 
-            Console.WriteLine($"Done with [{(int)exitCode}:{exitCode}] @ {DateTime.Now}");
-            Console.ReadLine();
+            ReportExecutionEnd(executionResult);
 
-            return (int)exitCode;
+            return (int)executionResult.Payload;
         }
 
-        static async Task<ExitCode> MainAsync(params string[] args)
+        static async Task<OperationResult<ExitCode>> MainAsync(params string[] args)
         {
-            return await ExitCode.Success.AsTask();
+            OperationResult<ExitCode> result = OperationResult.Win().WithPayload(ExitCode.Success);
+
+            await
+                new Func<Task>(async () =>
+                {
+                    result = await new ExceptionlessIoScenariosRunner(Cfg.ExceptionlessApiKey).Run(args);
+                })
+                .TryOrFailWithGrace(
+                    onFail: x => result = OperationResult.Fail(x).WithPayload(ExitCode.Exception)
+                );
+
+            return result;
+        }
+
+        private static void ReportExecutionEnd(OperationResult<ExitCode> executionResult)
+        {
+            Console.WriteLine($"{Environment.NewLine}{DateTime.Now} - DONE execution with exit code [{(int)executionResult.Payload}:{executionResult.Payload}]");
+            string[] reasons = executionResult.FlattenReasons() ?? new string[0];
+            if (reasons.Any())
+            {
+                Console.WriteLine($"{Environment.NewLine}Reason(s):{Environment.NewLine}=========={Environment.NewLine}");
+                Console.WriteLine(string.Join($"{Environment.NewLine}{Environment.NewLine}", reasons));
+            }
+            Console.ReadLine();
         }
     }
 }
