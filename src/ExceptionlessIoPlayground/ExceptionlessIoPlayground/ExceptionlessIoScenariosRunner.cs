@@ -1,4 +1,5 @@
-﻿using Exceptionless;
+﻿using Bogus;
+using Exceptionless;
 using H.Necessaire;
 using System;
 using System.Threading.Tasks;
@@ -9,6 +10,7 @@ namespace ExceptionlessIoPlayground
     {
         #region Construct
         readonly ExceptionlessClient exceptionlessClient;
+        readonly Faker faker = new Faker();
         public ExceptionlessIoScenariosRunner(string exceptionlessApiKey)
         {
             this.exceptionlessClient = new Exceptionless.ExceptionlessClient(exceptionlessApiKey);
@@ -17,6 +19,8 @@ namespace ExceptionlessIoPlayground
 
         public async Task<OperationResult<ExitCode>> Run(params string[] args)
         {
+            await Printer.PrintMessage("Running Exceptionless.io scenarios...");
+
             using (new TimeMeasurement(x => Printer.PrintMessage($"Done running Exceptionless.io scenarios after {x.TotalSeconds} secs.").Wait()))
             {
                 OperationResult<ExitCode> result = OperationResult.Win().WithPayload(ExitCode.Success);
@@ -24,17 +28,22 @@ namespace ExceptionlessIoPlayground
                 await
                     new Func<Task>(async () =>
                     {
-                        await Printer.PrintMessage("Running Exceptionless.io scenarios...");
+                        await Printer.PrintMessage("Submitting a simple LOG...");
+                        exceptionlessClient.SubmitLog(faker.Hacker.IngVerb());
 
-                        for (int i = 0; i < 10; i++)
+                        await Printer.PrintMessage("Submitting a dummy exception...");
+                        exceptionlessClient.SubmitException(new InvalidOperationException(faker.Hacker.Verb()));
+
+                        await Printer.PrintMessage("Submitting a dummy event...");
+                        exceptionlessClient.SubmitEvent(new Exceptionless.Models.Event
                         {
-                            await Task.Delay(TimeSpan.FromSeconds(.5));
-                            await Printer.PrintProgress();
-                        }
+                            Message = faker.Hacker.IngVerb(),
+                            ReferenceId = faker.Random.AlphaNumeric(8),
+                            Source = this.GetType().FullName,
+                        });
 
-                        Console.WriteLine();
-
-                        throw new NotImplementedException("ExceptionlessIoScenariosRunner not yet implemented");
+                        await Printer.PrintMessage("Submitting a dummy feature usage...");
+                        exceptionlessClient.SubmitFeatureUsage(faker.Commerce.ProductName());
                     })
                     .TryOrFailWithGrace(
                         onFail: x => result = OperationResult.Fail(x).WithPayload(ExitCode.Exception)
