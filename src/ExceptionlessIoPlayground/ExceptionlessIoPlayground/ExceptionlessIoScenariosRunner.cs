@@ -17,19 +17,19 @@ namespace ExceptionlessIoPlayground
 
         public async Task<OperationResult<ExitCode>> Run(params string[] args)
         {
-            using (new TimeMeasurement(x => Console.WriteLine($"{DateTime.Now} - Done running Exceptionless.io scenarios after {x.TotalSeconds} secs.")))
+            using (new TimeMeasurement(x => Printer.PrintMessage($"Done running Exceptionless.io scenarios after {x.TotalSeconds} secs.").Wait()))
             {
                 OperationResult<ExitCode> result = OperationResult.Win().WithPayload(ExitCode.Success);
 
                 await
                     new Func<Task>(async () =>
                     {
-                        Console.WriteLine($"{DateTime.Now} - Running Exceptionless.io scenarios...");
+                        await Printer.PrintMessage("Running Exceptionless.io scenarios...");
 
                         for (int i = 0; i < 10; i++)
                         {
                             await Task.Delay(TimeSpan.FromSeconds(.5));
-                            Console.Write(".");
+                            await Printer.PrintProgress();
                         }
 
                         Console.WriteLine();

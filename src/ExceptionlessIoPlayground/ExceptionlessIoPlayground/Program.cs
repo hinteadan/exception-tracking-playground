@@ -11,8 +11,6 @@ namespace ExceptionlessIoPlayground
         {
             OperationResult<ExitCode> executionResult = MainAsync(args).GetAwaiter().GetResult();
 
-            ReportExecutionEnd(executionResult);
-
             return (int)executionResult.Payload;
         }
 
@@ -29,17 +27,21 @@ namespace ExceptionlessIoPlayground
                     onFail: x => result = OperationResult.Fail(x).WithPayload(ExitCode.Exception)
                 );
 
+            await ReportExecutionEnd(result);
+
             return result;
         }
 
-        private static void ReportExecutionEnd(OperationResult<ExitCode> executionResult)
+        private static async Task ReportExecutionEnd(OperationResult<ExitCode> executionResult)
         {
-            Console.WriteLine($"{Environment.NewLine}{DateTime.Now} - DONE execution with exit code [{(int)executionResult.Payload}:{executionResult.Payload}]");
+            await Printer.PrintMessage(isTimestampped: false);
+            await Printer.PrintMessage($"DONE execution with exit code [{(int)executionResult.Payload}:{executionResult.Payload}]");
             string[] reasons = executionResult.FlattenReasons() ?? new string[0];
             if (reasons.Any())
             {
-                Console.WriteLine($"{Environment.NewLine}Reason(s):{Environment.NewLine}=========={Environment.NewLine}");
-                Console.WriteLine(string.Join($"{Environment.NewLine}{Environment.NewLine}", reasons));
+                await Printer.PrintMessage(isTimestampped: false);
+                await Printer.PrintMessage($"Reason(s):{Environment.NewLine}=========={Environment.NewLine}", isTimestampped: false);
+                await Printer.PrintMessage(string.Join($"{Environment.NewLine}{Environment.NewLine}", reasons), isTimestampped: false);
             }
             Console.ReadLine();
         }
